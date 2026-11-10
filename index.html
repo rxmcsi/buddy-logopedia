@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Buddy - Logopedický Asistent</title>
+    
+    <!-- PWA MANIFEST PRE INŠTALÁCIU NA TABLET / MOBIL -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#f8fafc">
+    <link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Buddy%20Logop%C3%A9dia%22%2C%22short_name%22%3A%22Buddy%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%23f8fafc%22%7D">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Pre Ikony -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti Pre Odmeny -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Fredoka', 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+            background-color: #f1f5f9;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+        }
+        .robot-head-casing {
+            background: linear-gradient(145deg, #e2e8f0, #cbd5e1);
+            box-shadow: 0 20px 45px -10px rgba(148, 163, 184, 0.5), 
+                        inset 0 2px 4px rgba(255, 255, 255, 0.9),
+                        0 0 35px rgba(2, 132, 199, 0.15);
+            border: 4px solid #ffffff;
+        }
+        .screen-container {
+            background: #f1f5f9;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.06),
+                        0 0 20px rgba(56, 189, 248, 0.15);
+            border: 3px solid #cbd5e1;
+        }
+        .tab-btn.active {
+            background-color: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+        }
+        .color-dot {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .color-dot:hover {
+            transform: scale(1.2);
+        }
+        .color-dot.active-color {
+            transform: scale(1.25);
+            outline: 2px solid #0284c7;
+            outline-offset: 2px;
+        }
+
+        /* CELOOBRAZOVKOVÝ REŽIM */
+        body.fullscreen-mode {
+            background: #f1f5f9 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            height: 100vh;
+            width: 100vw;
+        }
+        body.fullscreen-mode header,
+        body.fullscreen-mode .app-controls-column,
+        body.fullscreen-mode .face-extras {
+            display: none !important;
+        }
+        body.fullscreen-mode main {
+            display: flex !important;
+            max-width: 100vw !important;
+            height: 100vh !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        body.fullscreen-mode .robot-column {
+            grid-column: span 12 / span 12 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+        }
+        body.fullscreen-mode .robot-head-casing {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            background: #f1f5f9 !important;
+            box-shadow: none !important;
+        }
+        body.fullscreen-mode .screen-container {
+            border-radius: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+    </style>
+</head>
+<body class="fullscreen-mode bg-gradient-to-br from-sky-50 via-slate-50 to-indigo-50 min-h-screen flex flex-col justify-between text-slate-800">
+
+    <!-- PLÁVAJÚCE TLAČIDLO VĽAVO HORE -->
+    <button onclick="openMainMenu()" class="fixed top-4 left-4 z-50 bg-white/90 hover:bg-white text-sky-600 border border-sky-200 px-4 py-2.5 rounded-2xl shadow-lg backdrop-blur-md flex items-center gap-2 text-sm font-bold active:scale-95 transition">
+        <i class="fa-solid fa-bars text-lg"></i>
+        <span>Menu</span>
+    </button>
+
+    <!-- HLAVNÉ MENU MODAL (3 MOŽNOSTI: SPÄŤ, NASTAVENIA, CVIČENIA) -->
+    <div id="mainMenuModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card w-full max-w-sm rounded-3xl p-6 space-y-4 text-center border border-white shadow-2xl animate-in fade-in zoom-in duration-200">
+            <h2 class="text-xl font-bold text-slate-800 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-robot text-sky-500"></i> Buddy Menu
+            </h2>
+            <p class="text-xs text-slate-500">Vyber si, čo chceš otvoriť:</p>
+            
+            <div class="space-y-3 pt-2">
+                <!-- 1. SPÄŤ NA CELÚ TVÁR -->
+                <button onclick="menuOptionBack()" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold py-3.5 px-4 rounded-2xl text-sm transition shadow-md flex items-center justify-center gap-3 active:scale-95">
+                    <i class="fa-solid fa-expand text-lg"></i>
+                    <span>Späť (Celá Tvár)</span>
+                </button>
+
+                <!-- 2. NASTAVENIA (HLAS A HUDBA) -->
+                <button onclick="menuOptionSettings()" class="w-full bg-white hover:bg-slate-50 border-2 border-slate-200 text-slate-800 font-bold py-3.5 px-4 rounded-2xl text-sm transition shadow-sm flex items-center justify-center gap-3 active:scale-95">
+                    <i class="fa-solid fa-sliders text-indigo-500 text-lg"></i>
+                    <span>Nastavenia (Hlas & Hudba)</span>
+                </button>
+
+                <!-- 3. CVIČENIA A HRY -->
+                <button onclick="menuOptionExercises()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 px-4 rounded-2xl text-sm transition shadow-md flex items-center justify-center gap-3 active:scale-95">
+                    <i class="fa-solid fa-gamepad text-lg"></i>
+                    <span>Cvičenia, Slovíčka & Hry</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PRE NASTAVENIA (HLAS & HUDBA) -->
+    <div id="settingsModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 hidden">
+        <div class="glass-card w-full max-w-md rounded-3xl p-6 space-y-4 border border-white shadow-2xl relative">
+            <button onclick="closeSettingsModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg p-2">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2 border-b pb-3">
+                <i class="fa-solid fa-sliders text-indigo-500"></i> Nastavenia Hlasu a Hudby
+            </h2>
+
+            <div class="space-y-4 pt-1">
+                <!-- REŽIM HUDBY -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-2">Priebeh Hudby na Pozadí:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="calmMusicBtn" onclick="toggleMusic('calm')" class="text-xs font-bold py-2.5 px-3 rounded-xl bg-slate-100 text-slate-700 transition">
+                            🌙 Relaxačná Hudba
+                        </button>
+                        <button id="motiMusicBtn" onclick="toggleMusic('motivational')" class="text-xs font-bold py-2.5 px-3 rounded-xl bg-slate-100 text-slate-700 transition">
+                            ⚡ Motivačná
+                        </button>
+                    </div>
+                </div>
+
+                <!-- NASTAVENIE VOICES -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Vyberte Hlas zo systému:</label>
+                    <select id="voiceSelect" onchange="testVoiceSelection()" class="w-full bg-white border-2 border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-sky-500 shadow-sm">
+                        <option value="">Načítavam hlasy...</option>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-bold text-slate-600">Výška Tónu (Pitch):</label>
+                        <span id="pitchValue" class="text-xs font-bold text-sky-600">1.3 (Detský/Ženský)</span>
+                    </div>
+                    <input type="range" id="pitchInput" min="0.5" max="1.8" step="0.1" value="1.3" oninput="updatePitchLabel()" class="w-full accent-sky-500 cursor-pointer">
+                </div>
+
+                <div class="pt-2 flex gap-2">
+                    <button onclick="testVoiceSelection()" class="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-volume-high"></i>
+                        <span>Vyskúšať hlas</span>
+                    </button>
+                    <button onclick="stopSpeech()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-stop"></i>
+                        <span>Zastaviť</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HLAVIČKA -->
+    <header class="w-full max-w-6xl mx-auto p-4 flex flex-wrap justify-between items-center gap-3">
+        <div class="flex items-center space-x-3 pl-20 sm:pl-0">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-400 to-indigo-500 text-white flex items-center justify-center shadow-lg shadow-sky-500/20 text-2xl">
+                <i class="fa-solid fa-robot"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-xl sm:text-2xl text-slate-800 flex items-center gap-2">
+                    Buddy <span class="text-xs px-3 py-1 rounded-full bg-sky-100 text-sky-800 font-bold tracking-wide">LOGOPÉDIA</span>
+                </h1>
+                <p class="text-xs sm:text-sm text-slate-500 font-medium">Interaktívny robotický spoločník</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3 bg-white border border-slate-200 px-4 py-2 rounded-2xl shadow-sm">
+            <div class="flex items-center gap-1.5 text-amber-500 font-bold text-lg">
+                <i class="fa-solid fa-star text-amber-400"></i>
+                <span id="starCounter">0</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- HLAVNÝ OBSAH -->
+    <main class="flex-1 w-full max-w-6xl mx-auto px-4 py-2 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- ĽAVÝ STĹPEC: ROBOT A CANVAS -->
+        <div class="robot-column lg:col-span-5 flex flex-col items-center">
+            
+            <div id="robotHead" class="robot-head-casing relative w-full max-w-[420px] aspect-[4/3] rounded-[42px] p-4 sm:p-6 transition-transform duration-300">
+                
+                <div class="absolute -left-3.5 top-1/2 -translate-y-1/2 w-4 h-16 bg-slate-300 rounded-l-xl border-l border-y border-slate-400 flex flex-col justify-around items-center">
+                    <div id="leftEarGlow" class="w-2 h-5 rounded-full bg-sky-500 shadow-[0_0_10px_#0284c7] transition-colors duration-300"></div>
+                </div>
+                <div class="absolute -right-3.5 top-1/2 -translate-y-1/2 w-4 h-16 bg-slate-300 rounded-r-xl border-r border-y border-slate-400 flex flex-col justify-around items-center">
+                    <div id="rightEarGlow" class="w-2 h-5 rounded-full bg-sky-500 shadow-[0_0_10px_#0284c7] transition-colors duration-300"></div>
+                </div>
+
+                <!-- CANVAS DISPLAY (MATNÁ SIVÁ TVÁR) -->
+                <div class="screen-container w-full h-full rounded-[28px] overflow-hidden relative flex flex-col items-center justify-center cursor-pointer">
+                    <canvas id="robotCanvas" class="w-full h-full block relative z-0"></canvas>
+                    
+                    <div class="absolute bottom-3 text-center pointer-events-none z-10">
+                        <span id="emotionBadge" class="text-[11px] font-bold tracking-wider px-3.5 py-1 rounded-full bg-white/90 border border-slate-200 text-sky-700 shadow-sm">
+                            😊 Šťastný Buddy
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EXTRAS POD TVÁROU -->
+            <div class="face-extras w-full flex flex-col items-center">
+                
+                <div id="speechBubble" class="mt-3 w-full max-w-[420px] bg-white border-2 border-sky-200 rounded-2xl p-3.5 shadow-sm relative flex items-center gap-3">
+                    <div class="text-2xl text-sky-500 animate-pulse"><i class="fa-solid fa-comment-dots"></i></div>
+                    <div class="flex-1">
+                        <p id="buddyMessage" class="text-sm font-semibold text-slate-700">Ahoj! Ja som Buddy. Čo ideme dnes spolu cvičiť?</p>
+                    </div>
+                    <button id="speakToggleBtn" onclick="toggleSpeak()" class="bg-sky-100 hover:bg-sky-200 text-sky-700 p-2.5 rounded-xl transition text-xs font-bold flex items-center justify-center min-w-[38px]" title="Prehrať / Zastaviť">
+                        <i id="speakIcon" class="fa-solid fa-volume-high"></i>
+                    </button>
+                </div>
+
+                <!-- VÝBER FARIEB OČÍ -->
+                <div class="mt-3 flex flex-wrap items-center justify-center gap-2.5 bg-white px-4 py-2.5 rounded-2xl border border-slate-200 shadow-sm">
+                    <span class="text-xs font-bold text-slate-500">Farba očí:</span>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="changeRobotColor('#0284c7')" class="color-dot active-color w-5 h-5 rounded-full bg-sky-600 shadow-sm" data-color="#0284c7" title="Modrá"></button>
+                        <button onclick="changeRobotColor('#10b981')" class="color-dot w-5 h-5 rounded-full bg-emerald-500 shadow-sm" data-color="#10b981" title="Zelená"></button>
+                        <button onclick="changeRobotColor('#f43f5e')" class="color-dot w-5 h-5 rounded-full bg-rose-500 shadow-sm" data-color="#f43f5e" title="Ružová"></button>
+                        <button onclick="changeRobotColor('#f59e0b')" class="color-dot w-5 h-5 rounded-full bg-amber-500 shadow-sm" data-color="#f59e0b" title="Žltá"></button>
+                        <button onclick="changeRobotColor('#8b5cf6')" class="color-dot w-5 h-5 rounded-full bg-purple-500 shadow-sm" data-color="#8b5cf6" title="Fialová"></button>
+                        <button onclick="changeRobotColor('#334155')" class="color-dot w-5 h-5 rounded-full bg-slate-700 shadow-sm" data-color="#334155" title="Tmavá"></button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- PRAVÝ STĹPEC: OVLÁDANIE A CVIČENIA -->
+        <div class="app-controls-column lg:col-span-7 space-y-4">
+            
+            <div class="flex p-1.5 bg-slate-200/80 rounded-2xl gap-1">
+                <button onclick="switchTab('exercises')" id="tab-exercises" class="tab-btn active flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-600 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-face-laugh-beam"></i>
+                    <span>Rozcvičky</span>
+                </button>
+                <button onclick="switchTab('words')" id="tab-words" class="tab-btn flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-600 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-spell-check"></i>
+                    <span>Slovíčka</span>
+                </button>
+                <button onclick="switchTab('games')" id="tab-games" class="tab-btn flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-600 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-gamepad"></i>
+                    <span>Hry</span>
+                </button>
+                <button onclick="switchTab('mirror')" id="tab-mirror" class="tab-btn flex-1 py-2.5 px-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-600 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-camera"></i>
+                    <span>Zrkadlo</span>
+                </button>
+            </div>
+
+            <!-- TAB 1: ROZCVIČKY -->
+            <div id="panel-exercises" class="glass-card rounded-3xl p-5 space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-200/80 pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-sky-500"></i> Cvičenia Jazyka a Pier
+                        </h2>
+                        <p class="text-xs text-slate-500">Buddy predvedie cvik na celej obrazovke bez reči po dobu 7s.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <button onclick="runExercise('konik')" class="bg-white hover:bg-sky-50 border-2 border-slate-100 p-3.5 rounded-2xl flex flex-col items-center text-center transition shadow-sm active:scale-95">
+                        <div class="text-3xl mb-1">🐎</div>
+                        <span class="font-bold text-sm text-slate-800">Koník</span>
+                    </button>
+                    <button onclick="runExercise('balonik')" class="bg-white hover:bg-sky-50 border-2 border-slate-100 p-3.5 rounded-2xl flex flex-col items-center text-center transition shadow-sm active:scale-95">
+                        <div class="text-3xl mb-1">🎈</div>
+                        <span class="font-bold text-sm text-slate-800">Balónik</span>
+                    </button>
+                    <button onclick="runExercise('hodinky')" class="bg-white hover:bg-sky-50 border-2 border-slate-100 p-3.5 rounded-2xl flex flex-col items-center text-center transition shadow-sm active:scale-95">
+                        <div class="text-3xl mb-1">⏰</div>
+                        <span class="font-bold text-sm text-slate-800">Hodinky</span>
+                    </button>
+                    <button onclick="runExercise('smiech')" class="bg-white hover:bg-sky-50 border-2 border-slate-100 p-3.5 rounded-2xl flex flex-col items-center text-center transition shadow-sm active:scale-95">
+                        <div class="text-3xl mb-1">😁</div>
+                        <span class="font-bold text-sm text-slate-800">Veľký Úsmev</span>
+                    </button>
+                    <button onclick="runExercise('jazykhore')" class="bg-white hover:bg-sky-50 border-2 border-slate-100 p-3.5 rounded-2xl flex flex-col items-center text-center transition shadow-sm active:scale-95">
+                        <div class="text-3xl mb-1">👅</div>
+                        <span class="font-bold text-sm text-slate-800">Jazyk Hore</span>
+                    </button>
+                    <button onclick="runExercise('trubka')" class="bg-white hover:bg-sky-50 border-2 border-slate-100 p-3.5 rounded-2xl flex flex-col items-center text-center transition shadow-sm active:scale-95">
+                        <div class="text-3xl mb-1">🎺</div>
+                        <span class="font-bold text-sm text-slate-800">Trúbka</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 2: TRÉNING HLÁSOK (SLOVÍČKA) -->
+            <div id="panel-words" class="glass-card rounded-3xl p-5 space-y-4 hidden">
+                <div class="flex justify-between items-center border-b border-slate-200/80 pb-3">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-spell-check text-indigo-500"></i> Slovíčka a Hlásky
+                        </h2>
+                        <p class="text-xs text-slate-500">Klikni na kartu, Buddy slovo prečíta nahlas.</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="selectSoundCategory('R')" id="catBtnR" class="sound-cat-btn bg-indigo-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs transition">R</button>
+                    <button onclick="selectSoundCategory('L')" id="catBtnL" class="sound-cat-btn bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition">L</button>
+                    <button onclick="selectSoundCategory('S')" id="catBtnS" class="sound-cat-btn bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition">S / C / Z</button>
+                    <button onclick="selectSoundCategory('SCZ_HARD')" id="catBtnSCZ_HARD" class="sound-cat-btn bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition">Š / Č / Ž</button>
+                    <button onclick="selectSoundCategory('VF')" id="catBtnVF" class="sound-cat-btn bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition">V / F</button>
+                    <button onclick="selectSoundCategory('TDN')" id="catBtnTDN" class="sound-cat-btn bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition">T / D / N</button>
+                </div>
+
+                <div id="cardsGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+            </div>
+
+            <!-- TAB 3: HRY PRE DETI -->
+            <div id="panel-games" class="glass-card rounded-3xl p-5 space-y-4 hidden">
+                <div class="border-b border-slate-200 pb-3">
+                    <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-gamepad text-amber-500"></i> Interaktívne Hry pre Deti
+                    </h2>
+                    <p class="text-xs text-slate-500">Hry rozvíjajúce reč, pamäť a emócie bez stresu.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button onclick="startMiniGame('animals')" class="bg-gradient-to-br from-amber-50 to-amber-100/60 border-2 border-amber-200 hover:border-amber-400 p-4 rounded-2xl text-left transition flex flex-col justify-between">
+                        <div>
+                            <div class="text-3xl mb-2">🐾</div>
+                            <div class="font-bold text-sm text-slate-800">Zvuky Zvieratiek</div>
+                            <p class="text-[11px] text-slate-500 mt-1">Opakuj jednoduché zvuky.</p>
+                        </div>
+                    </button>
+                    <button onclick="startMiniGame('colors')" class="bg-gradient-to-br from-sky-50 to-sky-100/60 border-2 border-sky-200 hover:border-sky-400 p-4 rounded-2xl text-left transition flex flex-col justify-between">
+                        <div>
+                            <div class="text-3xl mb-2">🎨</div>
+                            <div class="font-bold text-sm text-slate-800">Farby a Oči</div>
+                            <p class="text-[11px] text-slate-500 mt-1">Buddy zmení farbu očí!</p>
+                        </div>
+                    </button>
+                    <button onclick="startMiniGame('emotions')" class="bg-gradient-to-br from-purple-50 to-purple-100/60 border-2 border-purple-200 hover:border-purple-400 p-4 rounded-2xl text-left transition flex flex-col justify-between">
+                        <div>
+                            <div class="text-3xl mb-2">😊</div>
+                            <div class="font-bold text-sm text-slate-800">Poznaj Emóciu</div>
+                            <p class="text-[11px] text-slate-500 mt-1">Učme sa pocity spolu.</p>
+                        </div>
+                    </button>
+                </div>
+
+                <!-- OBLAST PRE AKTÍVNU HRU -->
+                <div id="activeGameArea" class="bg-white border-2 border-slate-200 rounded-2xl p-4 hidden">
+                    <div id="gameContent"></div>
+                </div>
+            </div>
+
+            <!-- TAB 4: ZRKADLO S KAMEROU -->
+            <div id="panel-mirror" class="glass-card rounded-3xl p-5 space-y-4 hidden">
+                <div class="border-b border-slate-200 pb-3 flex justify-between items-center">
+                    <div>
+                        <h2 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-camera text-sky-500"></i> Zrkadlo (Kamera)
+                        </h2>
+                        <p class="text-xs text-slate-500">Buddy opakuje mimiku tváre dieťaťa pred kamerou!</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-center gap-4">
+                    <div class="relative w-full sm:w-1/2 aspect-video bg-slate-900 rounded-2xl overflow-hidden shadow-md flex items-center justify-center">
+                        <video id="webcamVideo" class="w-full h-full object-cover transform -scale-x-100" autoplay playsinline muted></video>
+                        <div id="camPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-4 bg-slate-800">
+                            <i class="fa-solid fa-video text-3xl mb-2 text-sky-400"></i>
+                            <p class="text-xs font-semibold">Kamera nie je aktívna.</p>
+                        </div>
+                    </div>
+
+                    <div class="w-full sm:w-1/2 space-y-2">
+                        <button id="toggleCamBtn" onclick="toggleWebcam()" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-xl text-xs transition shadow-md flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-camera"></i>
+                            <span id="camBtnText">Zapnúť Kameru</span>
+                        </button>
+                        
+                        <div class="bg-sky-50 border border-sky-200 rounded-xl p-3 text-xs text-sky-900 font-medium">
+                            💡 <strong>Tip pre logopéda:</strong> Vyskúšajte sa usmiať alebo otvoriť ústa dokorán. Buddy to zopakuje!
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MANUÁLNY TRENAŽÉR MIMIKY -->
+                <div class="pt-2 border-t border-slate-200">
+                    <label class="block text-xs font-bold text-slate-600 mb-2">Alebo vyskúšaj nastaviť mimiku ručne:</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button onclick="simulateFaceGesture('smile')" class="bg-white hover:bg-sky-50 border border-slate-200 p-2.5 rounded-xl font-bold text-xs text-slate-700 transition text-center">
+                            😁 Úsmev
+                        </button>
+                        <button onclick="simulateFaceGesture('openMouth')" class="bg-white hover:bg-sky-50 border border-slate-200 p-2.5 rounded-xl font-bold text-xs text-slate-700 transition text-center">
+                            😲 Pusa Ó
+                        </button>
+                        <button onclick="simulateFaceGesture('frown')" class="bg-white hover:bg-sky-50 border border-slate-200 p-2.5 rounded-xl font-bold text-xs text-slate-700 transition text-center">
+                            😠 Zamračenie
+                        </button>
+                        <button onclick="simulateFaceGesture('wink')" class="bg-white hover:bg-sky-50 border border-slate-200 p-2.5 rounded-xl font-bold text-xs text-slate-700 transition text-center">
+                            😜 Žmurknutie
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // CANVAS POLYFILL PRE ROUNDRECT
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (typeof r === 'number') r = { tl: r, tr: r, br: r, bl: r };
+                else {
+                    var defaultRadius = { tl: 0, tr: 0, br: 0, bl: 0 };
+                    for (var side in defaultRadius) r[side] = r[side] || defaultRadius[side];
+                }
+                this.beginPath();
+                this.moveTo(x + r.tl, y);
+                this.lineTo(x + w - r.tr, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r.tr);
+                this.lineTo(x + w, y + h - r.br);
+                this.quadraticCurveTo(x + w, y + h, x + w - r.br, y + h);
+                this.lineTo(x + r.bl, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r.bl);
+                this.lineTo(x, y + r.tl);
+                this.quadraticCurveTo(x, y, x + r.tl, y);
+                this.closePath();
+                return this;
+            };
+        }
+
+        let isFullscreen = true;
+        let exerciseTimeout = null;
+
+        function openMainMenu() {
+            document.getElementById('mainMenuModal').classList.remove('hidden');
+        }
+
+        function closeMainMenu() {
+            document.getElementById('mainMenuModal').classList.add('hidden');
+        }
+
+        function menuOptionBack() {
+            closeMainMenu();
+            if (!isFullscreen) {
+                isFullscreen = true;
+                document.body.classList.add('fullscreen-mode');
+                setTimeout(resizeCanvas, 100);
+            }
+        }
+
+        function menuOptionSettings() {
+            closeMainMenu();
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function menuOptionExercises() {
+            closeMainMenu();
+            if (isFullscreen) {
+                isFullscreen = false;
+                document.body.classList.remove('fullscreen-mode');
+                setTimeout(resizeCanvas, 100);
+            }
+        }
+
+        const canvas = document.getElementById('robotCanvas');
+        const ctx = canvas.getContext('2d');
+        let currentEmotion = 'happy', mouthShape = 'normal', mainColor = '#0284c7';
+        let targetLookX = 0, targetLookY = 0, currentLookX = 0, currentLookY = 0;
+        let blinkProgress = 0, isBlinking = false, blinkTimer = 0;
+        let bouncePhase = 0;
+        let heartParticles = [];
+        let emotionTimer = null;
+        let starScore = 0;
+        let activeMusicType = 'none';
+        let musicTimeout = null;
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        window.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            targetLookX = Math.max(-1, Math.min(1, (e.clientX - cx) / (rect.width / 2)));
+            targetLookY = Math.max(-1, Math.min(1, (e.clientY - cy) / (rect.height / 2)));
+        });
+
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        function playSoundForEmotion(type) {
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+                if (type === 'happy') {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+            } catch(e) {}
+        }
+
+        function playMusicNote() {
+            if (activeMusicType === 'none') return;
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+                if (activeMusicType === 'calm') {
+                    const freqs = [174.61, 220.00, 261.63, 329.63, 392.00];
+                    const freq = freqs[Math.floor(Math.random() * freqs.length)];
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.001, now);
+                    gain.gain.linearRampToValueAtTime(0.04, now + 0.8);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.0);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 4.0);
+                    musicTimeout = setTimeout(playMusicNote, 2400);
+                } else if (activeMusicType === 'motivational') {
+                    const freqs = [261.63, 329.63, 392.00, 523.25];
+                    const freq = freqs[Math.floor(Math.random() * freqs.length)];
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.001, now);
+                    gain.gain.linearRampToValueAtTime(0.06, now + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.8);
+                    musicTimeout = setTimeout(playMusicNote, 400);
+                }
+            } catch(e) {}
+        }
+
+        function toggleMusic(type) {
+            getAudioContext();
+            if (musicTimeout) clearTimeout(musicTimeout);
+            const calmBtn = document.getElementById('calmMusicBtn');
+            const motiBtn = document.getElementById('motiMusicBtn');
+            if (activeMusicType === type) {
+                activeMusicType = 'none';
+                calmBtn.className = 'text-xs font-bold py-2.5 px-3 rounded-xl bg-slate-100 text-slate-700 transition';
+                motiBtn.className = 'text-xs font-bold py-2.5 px-3 rounded-xl bg-slate-100 text-slate-700 transition';
+            } else {
+                activeMusicType = type;
+                if (type === 'calm') {
+                    calmBtn.className = 'text-xs font-bold py-2.5 px-3 rounded-xl bg-indigo-600 text-white shadow-sm transition';
+                    motiBtn.className = 'text-xs font-bold py-2.5 px-3 rounded-xl bg-slate-100 text-slate-700 transition';
+                } else {
+                    calmBtn.className = 'text-xs font-bold py-2.5 px-3 rounded-xl bg-slate-100 text-slate-700 transition';
+                    motiBtn.className = 'text-xs font-bold py-2.5 px-3 rounded-xl bg-amber-500 text-white shadow-sm transition';
+                }
+                playMusicNote();
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            getAudioContext();
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const w = canvas.width, h = canvas.height;
+            const cx = w / 2, cy = h / 2;
+            const eyeDist = w * 0.22;
+            const eyeY = cy - 10;
+            const eyeRadius = w * 0.12;
+
+            if (Math.hypot(x - (cx - eyeDist), y - eyeY) < eyeRadius || Math.hypot(x - (cx + eyeDist), y - eyeY) < eyeRadius) {
+                setEmotion('angry');
+                document.getElementById('buddyMessage').innerText = 'Auu! Nepichaj ma do očí, vtedy sa hnevám! 😡';
+            } else if (Math.hypot(x - cx, y - (cy + h * 0.24)) < w * 0.16) {
+                setEmotion('love');
+                spawnHearts();
+                document.getElementById('buddyMessage').innerText = 'Cmuk! Mám ťa veľmi rád! 💖';
+            } else if (Math.hypot(x - (cx - w * 0.28), y - (cy + h * 0.12)) < w * 0.14 || Math.hypot(x - (cx + w * 0.28), y - (cy + h * 0.12)) < w * 0.14) {
+                setEmotion('happy');
+                document.getElementById('buddyMessage').innerText = 'Hihi! Pošklotanie na líčkach ma rozosmeje! 😊';
+            } else if (y < cy - (h * 0.2)) {
+                setEmotion('curious');
+                document.getElementById('buddyMessage').innerText = 'Hmm? Čo vymyslíme teraz? 😲';
+            }
+        });
+
+        function setEmotion(em) {
+            currentEmotion = em;
+            playSoundForEmotion(em);
+            const labels = { 'happy': '😊 Šťastný', 'curious': '😲 Zvedavý', 'love': '😍 Zaľúbený', 'angry': '😡 Hnevný' };
+            document.getElementById('emotionBadge').innerText = labels[em] || em;
+            if (emotionTimer) clearTimeout(emotionTimer);
+            if (em !== 'happy') {
+                emotionTimer = setTimeout(() => {
+                    currentEmotion = 'happy';
+                    mouthShape = 'normal';
+                    document.getElementById('emotionBadge').innerText = '😊 Šťastný';
+                    document.getElementById('buddyMessage').innerText = 'Ahoj! Ja som Buddy. Čo ideme dnes spolu cvičiť?';
+                }, 5000);
+            }
+        }
+
+        function render() {
+            // JEMNÁ MATNÁ SIVÁ OBRAZOVKA ROBOTA
+            ctx.fillStyle = '#f1f5f9';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const cx = canvas.width / 2, cy = canvas.height / 2;
+            currentLookX += (targetLookX - currentLookX) * 0.1;
+            currentLookY += (targetLookY - currentLookY) * 0.1;
+            bouncePhase += 0.04;
+            const bounceOffsetY = Math.sin(bouncePhase) * 3;
+
+            blinkTimer++;
+            if (blinkTimer > 170 && !isBlinking) {
+                if (Math.random() < 0.1) { isBlinking = true; blinkTimer = 0; }
+            }
+            if (isBlinking) {
+                blinkProgress += 0.25;
+                if (blinkProgress >= 1) { blinkProgress = 1; isBlinking = false; }
+            } else if (blinkProgress > 0) {
+                blinkProgress -= 0.25;
+            }
+
+            const dispColor = currentEmotion === 'angry' ? '#e11d48' : mainColor;
+
+            // RUŽOVÉ LÍČKA
+            ctx.save();
+            ctx.fillStyle = currentEmotion === 'love' ? '#f43f5e' : '#fda4af';
+            ctx.globalAlpha = currentEmotion === 'happy' || currentEmotion === 'love' ? 0.75 : 0.4;
+            ctx.beginPath();
+            ctx.arc(cx - canvas.width * 0.28, cy + (canvas.height * 0.12) + bounceOffsetY, canvas.width * 0.07, 0, Math.PI * 2);
+            ctx.arc(cx + canvas.width * 0.28, cy + (canvas.height * 0.12) + bounceOffsetY, canvas.width * 0.07, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // OČI ROBOTA
+            const eyeDist = canvas.width * 0.22;
+            const eyeY = cy - 10 + bounceOffsetY + (currentLookY * 12);
+            const eyeW = canvas.width * 0.17, eyeH = canvas.height * 0.36;
+
+            ctx.shadowColor = dispColor;
+            ctx.shadowBlur = 12;
+            ctx.fillStyle = dispColor;
+
+            [cx - eyeDist + (currentLookX * 20), cx + eyeDist + (currentLookX * 20)].forEach((ex, idx) => {
+                ctx.save();
+                ctx.translate(ex, eyeY);
+                const scaleH = Math.max(0.08, 1 - blinkProgress);
+                if (currentEmotion === 'love') {
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.font = `${eyeW * 1.2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('❤️', 0, 0);
+                } else if (currentEmotion === 'angry') {
+                    ctx.rotate(idx === 0 ? 0.3 : -0.3);
+                    ctx.scale(1, scaleH);
+                    ctx.beginPath();
+                    ctx.roundRect(-eyeW / 2, -eyeH / 2, eyeW, eyeH, 12);
+                    ctx.fill();
+                } else if (currentEmotion === 'curious') {
+                    ctx.scale(1.15, 1.15 * scaleH);
+                    ctx.beginPath();
+                    ctx.roundRect(-eyeW / 2, -eyeH / 2, eyeW, eyeH, 24);
+                    ctx.fill();
+                } else {
+                    ctx.scale(1, scaleH);
+                    ctx.beginPath();
+                    ctx.roundRect(-eyeW / 2, -eyeH / 2, eyeW, eyeH, 20);
+                    ctx.fill();
+                }
+                ctx.restore();
+            });
+
+            // ÚSTA ROBOTA
+            ctx.shadowBlur = 0;
+            const mouthY = cy + (canvas.height * 0.24) + bounceOffsetY;
+            ctx.strokeStyle = '#334155';
+            ctx.fillStyle = '#334155';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+
+            if (isSpeaking) {
+                const talkOpen = Math.abs(Math.sin(bouncePhase * 4)) * 18;
+                ctx.beginPath();
+                ctx.ellipse(cx, mouthY, 20, 8 + talkOpen, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                if (currentEmotion === 'angry') {
+                    ctx.moveTo(cx - 20, mouthY + 5);
+                    ctx.lineTo(cx + 20, mouthY - 5);
+                    ctx.stroke();
+                } else if (mouthShape === 'smiech') {
+                    ctx.arc(cx, mouthY - 5, 26, 0.1 * Math.PI, 0.9 * Math.PI);
+                    ctx.stroke();
+                } else if (mouthShape === 'trubka' || mouthShape === 'balonik') {
+                    ctx.arc(cx, mouthY, mouthShape === 'balonik' ? 18 : 10, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (mouthShape === 'jazykhore') {
+                    ctx.arc(cx, mouthY, 18, 0, Math.PI);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.arc(cx, mouthY + Math.sin(bouncePhase * 5) * 6, 9, Math.PI, 0);
+                    ctx.fill();
+                } else if (mouthShape === 'konik') {
+                    const clickOffset = Math.sin(bouncePhase * 8) * 10;
+                    ctx.arc(cx, mouthY - 2, 20, 0.15 * Math.PI, 0.85 * Math.PI);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.arc(cx, mouthY - 8 + clickOffset, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (mouthShape === 'hodinky') {
+                    const sideX = Math.sin(bouncePhase * 3) * 22;
+                    ctx.arc(cx, mouthY - 2, 22, 0.15 * Math.PI, 0.85 * Math.PI);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.fillStyle = '#f43f5e';
+                    ctx.arc(cx + sideX, mouthY + 2, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.arc(cx, mouthY - 2, 20, 0.15 * Math.PI, 0.85 * Math.PI);
+                    ctx.stroke();
+                }
+            }
+
+            // PARTIKLE SRDIEČOK
+            for (let i = heartParticles.length - 1; i >= 0; i--) {
+                let p = heartParticles[i];
+                p.y -= p.speedY;
+                p.opacity -= 0.02;
+                if (p.opacity <= 0) { heartParticles.splice(i, 1); continue; }
+                ctx.save();
+                ctx.fillStyle = '#ec4899';
+                ctx.globalAlpha = p.opacity;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+            requestAnimationFrame(render);
+        }
+
+        function spawnHearts() {
+            heartParticles = [];
+            for (let i = 0; i < 7; i++) {
+                heartParticles.push({
+                    x: canvas.width / 2 + (Math.random() - 0.5) * 140,
+                    y: canvas.height / 2 + 20,
+                    size: 14 + Math.random() * 10,
+                    speedY: 1 + Math.random() * 1.5,
+                    opacity: 1
+                });
+            }
+        }
+
+        function changeRobotColor(color) {
+            mainColor = color;
+            document.getElementById('leftEarGlow').style.backgroundColor = color;
+            document.getElementById('leftEarGlow').style.boxShadow = `0 0 12px ${color}`;
+            document.getElementById('rightEarGlow').style.backgroundColor = color;
+            document.getElementById('rightEarGlow').style.boxShadow = `0 0 12px ${color}`;
+            document.querySelectorAll('.color-dot').forEach(dot => {
+                dot.classList.remove('active-color');
+                if (dot.dataset.color === color) dot.classList.add('active-color');
+            });
+        }
+
+        function switchTab(tab) {
+            stopSpeech();
+            ['exercises', 'words', 'games', 'mirror'].forEach(t => {
+                document.getElementById(`panel-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('active');
+            });
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function runExercise(type) {
+            stopSpeech();
+            mouthShape = type;
+            const descriptions = {
+                'konik': 'Cvičíme koníka: Klopkáme jazykom o podnebie!',
+                'balonik': 'Cvičíme balónik: Nafúkneme líčka dokorán!',
+                'hodinky': 'Cvičíme hodinky: Jazyk ide zľava doprava!',
+                'smiech': 'Cvičíme úsmev: Ukážeme zúbky dokorán!',
+                'jazykhore': 'Cvičíme jazyk: Dávame špičku jazyka hore!',
+                'trubka': 'Cvičíme trúbku: Zaokrúhlime pery dopredu!'
+            };
+
+            document.getElementById('buddyMessage').innerText = descriptions[type] || `Cvičíme: ${type}!`;
+            
+            if (!isFullscreen) {
+                isFullscreen = true;
+                document.body.classList.add('fullscreen-mode');
+                setTimeout(resizeCanvas, 100);
+            }
+
+            if (exerciseTimeout) clearTimeout(exerciseTimeout);
+            exerciseTimeout = setTimeout(() => {
+                mouthShape = 'normal';
+                if (isFullscreen) {
+                    isFullscreen = false;
+                    document.body.classList.remove('fullscreen-mode');
+                    setTimeout(resizeCanvas, 100);
+                }
+                starScore++;
+                document.getElementById('starCounter').innerText = starScore;
+                document.getElementById('buddyMessage').innerText = 'Výborne! Krásne cvičenie! ⭐';
+                if (typeof confetti === 'function') confetti({ particleCount: 25, spread: 60, origin: { y: 0.8 } });
+            }, 7000);
+        }
+
+        const wordData = {
+            'R': [{ word: 'Ryba', emoji: '🐟' }, { word: 'Raketa', emoji: '🚀' }, { word: 'Ruka', emoji: '🖐️' }, { word: 'Rádio', emoji: '📻' }, { word: 'Rána', emoji: '🌅' }, { word: 'Bager', emoji: '🚜' }],
+            'L': [{ word: 'Lopta', emoji: '⚽' }, { word: 'List', emoji: '🍃' }, { word: 'Lampa', emoji: '💡' }, { word: 'Lev', emoji: '🦁' }, { word: 'Les', emoji: '🌲' }, { word: 'Lodička', emoji: '⛵' }],
+            'S': [{ word: 'Slnko', emoji: '☀️' }, { word: 'Cibuľa', emoji: '🧅' }, { word: 'Zmrzlina', emoji: '🍦' }, { word: 'Srdce', emoji: '💖' }, { word: 'Cestoviny', emoji: '🍝' }, { word: 'Zvonček', emoji: '🔔' }],
+            'SCZ_HARD': [{ word: 'Škola', emoji: '🏫' }, { word: 'Čapka', emoji: '🧢' }, { word: 'Žaba', emoji: '🐸' }, { word: 'Šaty', emoji: '👗' }, { word: 'Čokoláda', emoji: '🍫' }, { word: 'Žirafa', emoji: '🦒' }],
+            'VF': [{ word: 'Voda', emoji: '💧' }, { word: 'Fľaša', emoji: '🍼' }, { word: 'Vlak', emoji: '🚆' }, { word: 'Fotoaparát', emoji: '📷' }, { word: 'Veverička', emoji: '🐿️' }, { word: 'Fúrik', emoji: '🚜' }],
+            'TDN': [{ word: 'Taška', emoji: '🎒' }, { word: 'Dom', emoji: '🏠' }, { word: 'Noc', emoji: '🌙' }, { word: 'Traktor', emoji: '🚜' }, { word: 'Dvere', emoji: '🚪' }, { word: 'Nohavice', emoji: '👖' }]
+        };
+
+        function selectSoundCategory(cat) {
+            ['R', 'L', 'S', 'SCZ_HARD', 'VF', 'TDN'].forEach(c => {
+                const btn = document.getElementById(`catBtn${c}`);
+                if (btn) {
+                    if (c === cat) {
+                        btn.className = 'sound-cat-btn bg-indigo-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs transition';
+                    } else {
+                        btn.className = 'sound-cat-btn bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl font-bold text-xs transition';
+                    }
+                }
+            });
+            const grid = document.getElementById('cardsGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            wordData[cat].forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = 'bg-white hover:bg-indigo-50 border-2 border-slate-100 hover:border-indigo-200 p-3.5 rounded-2xl flex flex-col items-center justify-center text-center transition shadow-sm active:scale-95';
+                btn.onclick = () => playWordCard(item.word);
+                btn.innerHTML = `<div class="text-3xl mb-1.5">${item.emoji}</div><span class="font-bold text-sm text-slate-800">${item.word}</span>`;
+                grid.appendChild(btn);
+            });
+        }
+
+        function playWordCard(word) {
+            document.getElementById('buddyMessage').innerText = `Povedz: ${word}!`;
+            startSpeech(word);
+            starScore++;
+            document.getElementById('starCounter').innerText = starScore;
+            if (typeof confetti === 'function') confetti({ particleCount: 25, spread: 60, origin: { y: 0.8 } });
+        }
+
+        function startMiniGame(type) {
+            const area = document.getElementById('activeGameArea');
+            const container = document.getElementById('gameContent');
+            area.classList.remove('hidden');
+
+            if (type === 'animals') {
+                container.innerHTML = `
+                    <h3 class="font-bold text-sm text-slate-800 mb-2">🐾 Zvuky zvieratiek – Zopakuj po zvieratku:</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="playAnimalSound('Mačička', 'Mňau')" class="p-3 bg-amber-50 rounded-xl font-bold text-xs border border-amber-200 hover:bg-amber-100">🐱 Mačka<br><span class="text-amber-700">"Mňau"</span></button>
+                        <button onclick="playAnimalSound('Psík', 'Haf haf')" class="p-3 bg-amber-50 rounded-xl font-bold text-xs border border-amber-200 hover:bg-amber-100">🐶 Pes<br><span class="text-amber-700">"Haf"</span></button>
+                        <button onclick="playAnimalSound('Kravička', 'Búúú')" class="p-3 bg-amber-50 rounded-xl font-bold text-xs border border-amber-200 hover:bg-amber-100">🐮 Kravička<br><span class="text-amber-700">"Bú"</span></button>
+                    </div>
+                `;
+            } else if (type === 'colors') {
+                container.innerHTML = `
+                    <h3 class="font-bold text-sm text-slate-800 mb-2">🎨 Klikni na farbu a Buddy zmení oči:</h3>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button onclick="pickColorGame('#0284c7', 'Modrá')" class="p-3 bg-sky-500 text-white rounded-xl font-bold text-xs shadow-sm">Modrá</button>
+                        <button onclick="pickColorGame('#10b981', 'Zelená')" class="p-3 bg-emerald-500 text-white rounded-xl font-bold text-xs shadow-sm">Zelená</button>
+                        <button onclick="pickColorGame('#f43f5e', 'Červená')" class="p-3 bg-rose-500 text-white rounded-xl font-bold text-xs shadow-sm">Červená</button>
+                        <button onclick="pickColorGame('#f59e0b', 'Žltá')" class="p-3 bg-amber-500 text-white rounded-xl font-bold text-xs shadow-sm">Žltá</button>
+                    </div>
+                `;
+            } else if (type === 'emotions') {
+                container.innerHTML = `
+                    <h3 class="font-bold text-sm text-slate-800 mb-2">😊 Aký pocit má Buddy?</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="pickEmotionGame('happy', 'Šťastný')" class="p-3 bg-purple-50 rounded-xl font-bold text-xs border border-purple-200">😊 Šťastný</button>
+                        <button onclick="pickEmotionGame('curious', 'Zvedavý')" class="p-3 bg-purple-50 rounded-xl font-bold text-xs border border-purple-200">😲 Zvedavý</button>
+                        <button onclick="pickEmotionGame('love', 'Zaľúbený')" class="p-3 bg-purple-50 rounded-xl font-bold text-xs border border-purple-200">😍 Zaľúbený</button>
+                    </div>
+                `;
+            }
+        }
+
+        function playAnimalSound(name, sound) {
+            document.getElementById('buddyMessage').innerText = `${name} robí: ${sound}!`;
+            startSpeech(`${sound}`);
+            starScore++;
+            document.getElementById('starCounter').innerText = starScore;
+        }
+
+        function pickColorGame(colorHex, name) {
+            changeRobotColor(colorHex);
+            document.getElementById('buddyMessage').innerText = `Oči sú teraz: ${name}!`;
+            startSpeech(name);
+            starScore++;
+            document.getElementById('starCounter').innerText = starScore;
+        }
+
+        function pickEmotionGame(em, name) {
+            setEmotion(em);
+            document.getElementById('buddyMessage').innerText = `Buddy je teraz ${name}!`;
+            startSpeech(name);
+            starScore++;
+            document.getElementById('starCounter').innerText = starScore;
+        }
+
+        // KAMERA A ZRKADLENIE MIMIKY
+        let isCamActive = false;
+        let webcamStream = null;
+        let camAnalysisInterval = null;
+        const processCanvas = document.createElement('canvas');
+        const processCtx = processCanvas.getContext('2d', { willReadFrequently: true });
+
+        async function toggleWebcam() {
+            const video = document.getElementById('webcamVideo');
+            const placeholder = document.getElementById('camPlaceholder');
+            const btnText = document.getElementById('camBtnText');
+
+            if (isCamActive) {
+                if (webcamStream) {
+                    webcamStream.getTracks().forEach(track => track.stop());
+                }
+                if (camAnalysisInterval) clearInterval(camAnalysisInterval);
+                video.srcObject = null;
+                isCamActive = false;
+                placeholder.classList.remove('hidden');
+                btnText.innerText = 'Zapnúť Kameru';
+                document.getElementById('buddyMessage').innerText = 'Kamera bola vypnutá.';
+            } else {
+                try {
+                    webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 320, height: 240 }, audio: false });
+                    video.srcObject = webcamStream;
+                    isCamActive = true;
+                    placeholder.classList.add('hidden');
+                    btnText.innerText = 'Vypnúť Kameru';
+                    document.getElementById('buddyMessage').innerText = 'Sledujem ťa! Skús sa usmiať alebo otvoriť pusu dokorán! 😃';
+                    
+                    // Spustenie analýzy obrazu z kamery pre sledovanie tváre
+                    camAnalysisInterval = setInterval(analyzeCameraFrame, 150);
+                } catch (err) {
+                    alert('Nepodarilo sa otvoriť kameru. Skontrolujte povolenia v prehliadači.');
+                }
+            }
+        }
+
+        function analyzeCameraFrame() {
+            const video = document.getElementById('webcamVideo');
+            if (!isCamActive || !video || video.readyState !== 4) return;
+
+            processCanvas.width = 80;
+            processCanvas.height = 60;
+            processCtx.drawImage(video, 0, 0, 80, 60);
+
+            const frame = processCtx.getImageData(0, 0, 80, 60);
+            const data = frame.data;
+
+            let darkPixelCount = 0;
+            let centerXAcc = 0, centerYAcc = 0, totalWeight = 0;
+
+            for (let y = 0; y < 60; y++) {
+                for (let x = 0; x < 80; x++) {
+                    const idx = (y * 80 + x) * 4;
+                    const r = data[idx];
+                    const g = data[idx + 1];
+                    const b = data[idx + 2];
+                    const brightness = (r + g + b) / 3;
+
+                    if (brightness < 60) {
+                        darkPixelCount++;
+                    }
+
+                    const weight = 255 - brightness;
+                    centerXAcc += x * weight;
+                    centerYAcc += y * weight;
+                    totalWeight += weight;
+                }
+            }
+
+            if (totalWeight > 0) {
+                const avgX = centerXAcc / totalWeight;
+                const avgY = centerYAcc / totalWeight;
+                targetLookX = -((avgX / 80) * 2 - 1);
+                targetLookY = (avgY / 60) * 2 - 1;
+            }
+
+            if (darkPixelCount > 350) {
+                mouthShape = 'balonik';
+            } else {
+                mouthShape = 'normal';
+            }
+        }
+
+        function simulateFaceGesture(gesture) {
+            stopSpeech();
+            if (gesture === 'smile') {
+                setEmotion('happy');
+                mouthShape = 'smiech';
+                document.getElementById('buddyMessage').innerText = 'Krásny úsmev! 😁';
+            } else if (gesture === 'openMouth') {
+                setEmotion('curious');
+                mouthShape = 'balonik';
+                document.getElementById('buddyMessage').innerText = 'Veľká pusa dokorán! 😲';
+            } else if (gesture === 'frown') {
+                setEmotion('angry');
+                mouthShape = 'normal';
+                document.getElementById('buddyMessage').innerText = 'Zamračená tvárička! 😠';
+            } else if (gesture === 'wink') {
+                isBlinking = true;
+                blinkProgress = 1;
+                document.getElementById('buddyMessage').innerText = 'Žmurk! 😉';
+            }
+        }
+
+        let availableVoices = [];
+        let isSpeaking = false;
+
+        function populateVoiceList() {
+            if (!('speechSynthesis' in window)) return;
+            availableVoices = window.speechSynthesis.getVoices();
+            const select = document.getElementById('voiceSelect');
+            if (!select) return;
+            select.innerHTML = '';
+            if (availableVoices.length === 0) {
+                select.innerHTML = '<option value="">Načítavam hlasy...</option>';
+                return;
+            }
+            availableVoices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.lang.startsWith('sk') || voice.lang.startsWith('cs')) option.textContent = '⭐ ' + option.textContent;
+                select.appendChild(option);
+            });
+            let bestIndex = availableVoices.findIndex(v => (v.lang.startsWith('sk') || v.lang.startsWith('cs')) && (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zuzana') || v.name.toLowerCase().includes('google')));
+            if (bestIndex === -1) bestIndex = availableVoices.findIndex(v => v.lang.startsWith('sk'));
+            if (bestIndex === -1) bestIndex = 0;
+            select.value = bestIndex;
+        }
+
+        function updatePitchLabel() {
+            const pitch = document.getElementById('pitchInput').value;
+            let label = `${pitch} `;
+            if (pitch > 1.1) label += '(Detský / Ženský)';
+            else if (pitch < 0.9) label += '(Hlboký)';
+            else label += '(Stredný)';
+            document.getElementById('pitchValue').innerText = label;
+        }
+
+        function stopSpeech() {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            isSpeaking = false;
+            updateSpeakIcon();
+        }
+
+        function toggleSpeak() {
+            if (isSpeaking) stopSpeech();
+            else startSpeech(document.getElementById('buddyMessage').innerText);
+        }
+
+        function testVoiceSelection() {
+            startSpeech("Ahoj! Toto je test vybraného hlasu.");
+        }
+
+        function startSpeech(textToSpeak) {
+            if (!('speechSynthesis' in window)) return;
+            stopSpeech();
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            const select = document.getElementById('voiceSelect');
+            const selectedIdx = select ? select.value : 0;
+            if (availableVoices[selectedIdx]) {
+                utterance.voice = availableVoices[selectedIdx];
+                utterance.lang = availableVoices[selectedIdx].lang;
+            } else {
+                utterance.lang = 'sk-SK';
+            }
+            const pitchInput = document.getElementById('pitchInput');
+            utterance.pitch = pitchInput ? parseFloat(pitchInput.value) : 1.3;
+            utterance.rate = 0.85;
+
+            utterance.onstart = () => { isSpeaking = true; updateSpeakIcon(); };
+            utterance.onend = () => { isSpeaking = false; updateSpeakIcon(); };
+            utterance.onerror = () => { isSpeaking = false; updateSpeakIcon(); };
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function updateSpeakIcon() {
+            const icon = document.getElementById('speakIcon');
+            const btn = document.getElementById('speakToggleBtn');
+            if (!icon || !btn) return;
+            if (isSpeaking) {
+                icon.className = 'fa-solid fa-stop text-rose-600';
+                btn.className = 'bg-rose-100 hover:bg-rose-200 text-rose-700 p-2.5 rounded-xl transition text-xs font-bold flex items-center justify-center min-w-[38px]';
+            } else {
+                icon.className = 'fa-solid fa-volume-high';
+                btn.className = 'bg-sky-100 hover:bg-sky-200 text-sky-700 p-2.5 rounded-xl transition text-xs font-bold flex items-center justify-center min-w-[38px]';
+            }
+        }
+
+        if ('speechSynthesis' in window) {
+            populateVoiceList();
+            window.speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+
+        window.onload = () => {
+            resizeCanvas();
+            render();
+            populateVoiceList();
+            selectSoundCategory('R');
+        };
+    </script>
+</body>
+</html>
